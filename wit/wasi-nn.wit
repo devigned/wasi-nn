@@ -34,14 +34,23 @@ interface tensor {
         I64
     }
 
-    /// The tensor data.
-    ///
-    /// Initially conceived as a sparse representation, each empty cell would be filled with zeros
-    /// and the array length must match the product of all of the dimensions and the number of bytes
-    /// in the type (e.g., a 2x2 tensor with 4-byte f32 elements would have a data array of length
-    /// 16). Naturally, this representation requires some knowledge of how to lay out data in
-    /// memory--e.g., using row-major ordering--and could perhaps be improved.
-    type tensor-data = list<u8>;
+    /// tensor-data provides an input and output stream for data moving into or out of a model.
+    /// 
+    /// this is roughly based on: https://github.com/WebAssembly/wasi-http/blob/13dad387dc2cd5ba2849f531b1848d6c63a683d9/wit-0.3.0-draft/types.wit#L235-L252
+    resource tensor-data {
+        /// Construct a new `tensor-data` with the specified stream.
+        constructor(data: stream<u8>);
+
+        /// Returns the contents of the data as a stream of bytes.
+        ///
+        /// This function may be called multiple times as long as any `stream`s
+        /// returned by previous calls have been dropped first.
+        data: func() -> result<stream<u8>>;
+
+        /// Takes ownership of `tensor-data`, and returns nothing or error code.  This function will
+        /// trap if a `stream` child is still alive.
+        finish: static func(this: tensor-data) -> result<_, error>;
+    }
 
     resource tensor {
         constructor(dimensions: tensor-dimensions, ty: tensor-type, data: tensor-data);
@@ -53,7 +62,10 @@ interface tensor {
         // Describe the type of element in the tensor (e.g., `f32`).
         ty: func() -> tensor-type;
 
-        // Return the tensor data.
+        /// Return the tensor data as a stream of bytes
+        ///
+        /// This function may be called multiple times as long as any `stream`s
+        /// returned by previous calls have been dropped first.
         data: func() -> tensor-data;
     }
 }
